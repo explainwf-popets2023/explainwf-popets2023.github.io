@@ -1,3 +1,46 @@
+Prerequisites
+=============
+
+- Docker <https://www.docker.com/>
+- XZ Utils <https://tukaani.org/xz/>
+- GNU Make <https://www.gnu.org/software/make/>
+
+Quickstart
+==========
+
+Run the following commands to create a sample dataset and train & evaluate an
+SVM on the sample data.
+
+1. Run `$ make docker_run`
+2. Inside the Docker shell, run the following:
+  1. `$ cd /mnt/bind/code/`
+  2. `$ ./download.bash`
+  3. `$ ./patch.bash`
+  4. `$ source docker_filepaths.bash && ./preprocess_data.bash`
+  5. As an example, train a single model using
+  ```
+  $ python3 train_models.py --no_kfp --no_nn --no_tt \
+  ./out/split/section3/wget.pkl ./out/models/
+  ```
+  6. Test the trained model:
+  ```
+  $ python3 test_models.py ./out/split/section3/wget.pkl output.json \
+  ./out/models/svm.tar.gz
+  ```
+
+The final classification statistics will be located out `./output.json`.
+
+Notes
+=====
+
+- The quickstart and this guide use sample datasets generated from our full
+  datasets. See our Makefile. The sample datasets can be replaced with the full
+  datasets if desired, but running these experiments with full datasets consumes
+  a large amount of CPU time and memory.
+
+Detailed Explanation
+====================
+
 Docker Initialization
 ---------------------
 
