@@ -1,0 +1,323 @@
+From 12daaa7b692ec58fd94a6391c0c42c39796343d3 Mon Sep 17 00:00:00 2001
+From: Ryan Wails <ryanswails@gmail.com>
+Date: Fri, 20 Jan 2023 15:37:40 -0500
+Subject: [PATCH 1/5] hacks in SOCKS5 support, overriding http proxy options
+
+---
+ libwget/http.c | 84 ++++++++++++++++++++++++++++++++++++++++++--------
+ 1 file changed, 71 insertions(+), 13 deletions(-)
+
+diff --git a/libwget/http.c b/libwget/http.c
+index ac4acf0e..45a3f8af 100644
+--- a/libwget/http.c
++++ b/libwget/http.c
+@@ -30,6 +30,7 @@
+  *
+  */
+ 
++#include <assert.h>
+ #include <config.h>
+ 
+ #include <stdio.h>
+@@ -609,16 +610,47 @@ static void setup_nghttp2_callbacks(nghttp2_session_callbacks *callbacks)
+ 
+ static int establish_proxy_connect(wget_tcp *tcp, const char *host, uint16_t port)
+ {
++  // <https://beej.us/guide/bgnet/html/#getaddrinfoprepare-to-launch>
++  int status;
++  struct addrinfo hints;
++  struct addrinfo *servinfo;  // will point to the results
++
++  enum { PORT_STR_NBYTES = 32 };
++  char port_str[PORT_STR_NBYTES] = {0};
++  snprintf(port_str, PORT_STR_NBYTES, "%d", port);
++
++  memset(&hints, 0, sizeof hints); // make sure the struct is empty
++  hints.ai_family = AF_INET;     // don't care IPv4 or IPv6
++  hints.ai_socktype = SOCK_STREAM; // TCP stream sockets
++  hints.ai_flags = AI_NUMERICSERV;     // fill in my IP for me
++
++  if ((status = getaddrinfo(host, port_str, &hints, &servinfo)) != 0) {
++      fprintf(stderr, "getaddrinfo error: %s\n", gai_strerror(status));
++      exit(1);
++  }
++
++  assert(servinfo);
++
++  servinfo[0];
++  struct sockaddr_in *ipv4 = (struct sockaddr_in *)servinfo[0].ai_addr;
++  uint8_t addr_octets[4] =  {0};
++  memcpy(&addr_octets[0], &ipv4->sin_addr, 4);
++
++  // servinfo now points to a linked list of 1 or more struct addrinfos
++
++  // ... do everything until you don't need servinfo anymore ....
++
++  freeaddrinfo(servinfo); // free the linked-list
++
+ 	char sbuf[1024];
+-	wget_buffer buf;
+ 
+-	wget_buffer_init(&buf, sbuf, sizeof(sbuf));
++	wget_buffer buf;
+ 
+-	// The use of Proxy-Connection has been discouraged in RFC 7230 A.1.2.
+-	// wget_buffer_sprintf(buf, "CONNECT %s:%hu HTTP/1.1\r\nHost: %s\r\nProxy-Connection: keep-alive\r\n\r\n",
++	wget_buffer_init(&buf, NULL, 16);
+ 
+-	wget_buffer_printf(&buf, "CONNECT %s:%hu HTTP/1.1\r\nHost: %s:%hu\r\n\r\n",
+-		host, port, host, port);
++  enum { SOCKS_GREETING_NBYTES = 3 };
++  uint8_t socks_greeting[SOCKS_GREETING_NBYTES] = { 0x05, 0x01, 0x00 };
++  wget_buffer_memcpy(&buf, &socks_greeting[0], SOCKS_GREETING_NBYTES);
+ 
+ 	if (wget_tcp_write(tcp, buf.data, buf.length) != (ssize_t) buf.length) {
+ 		wget_buffer_deinit(&buf);
+@@ -633,16 +665,41 @@ static int establish_proxy_connect(wget_tcp *tcp, const char *host, uint16_t por
+ 	}
+ 	sbuf[nbytes] = 0;
+ 
+-	// strip trailing whitespace
+-	while (nbytes > 0 && c_isspace(sbuf[--nbytes]))
+-		sbuf[nbytes] = 0;
++  if (sbuf[0] != 5 || sbuf[1] != 0) {
++    error_printf("Unexpected greeting response from SOCKS5 server.\n");
++		return WGET_E_CONNECT;
++  }
++
++  // Now ask for the connect:
++  enum { SOCKS_CONNECT_PREAMBLE_NBYTES = 4 };
++  uint8_t socks_connect_preamble[SOCKS_CONNECT_PREAMBLE_NBYTES] = {0x05, 0x01,
++                                                                   0x00, 0x01};
++
++	wget_buffer_init(&buf, NULL, 16);
++  wget_buffer_memcpy(&buf, &socks_connect_preamble[0], SOCKS_CONNECT_PREAMBLE_NBYTES);
++  wget_buffer_memcat(&buf, &addr_octets[0], 4);
++  uint16_t port_network_order = htons(port);
++  wget_buffer_memcat(&buf, &port_network_order, sizeof(port_network_order));
++
++	if (wget_tcp_write(tcp, buf.data, buf.length) != (ssize_t) buf.length) {
++		wget_buffer_deinit(&buf);
++		return WGET_E_CONNECT;
++	}
++  
++	wget_buffer_deinit(&buf);
+ 
+-	if (wget_strncasecmp_ascii(sbuf, "HTTP/1.1 200", 12)) {
+-		error_printf("Proxy connection failed with: %s\n", sbuf);
++  nbytes = 0;
++	if ((nbytes = wget_tcp_read(tcp, sbuf, sizeof(sbuf) - 1)) < 0) {
+ 		return WGET_E_CONNECT;
+ 	}
++	sbuf[nbytes] = 0;
++
++  if (sbuf[0] != 0x05 || sbuf[1] != 0x00) {
++    error_printf("SOCKS5 connect error from server.");
++    return WGET_E_CONNECT;
++  }
+ 
+-	debug_printf("Proxy connection established: %s\n", sbuf);
++	debug_printf("Proxy connection established.");
+ 
+ 	return WGET_E_SUCCESS;
+ }
+@@ -682,7 +739,8 @@ int wget_http_open(wget_http_connection **_conn, const wget_iri *iri)
+ 			host = proxy->host;
+ 			port = proxy->port;
+ 			ssl = proxy->scheme == WGET_IRI_SCHEME_HTTPS;
+-			conn->proxied = 1;
++			// conn->proxied = 1;
++			need_connect = true;
+ 		} else if (ssl && https_proxies) {
+ 			wget_thread_mutex_lock(proxy_mutex);
+ 			wget_iri *proxy = wget_vector_get(https_proxies, (++next_https_proxy) % wget_vector_size(https_proxies));
+-- 
+2.30.2
+
+
+From d4e9378345a3634080039acfeeb189c4255eb9cf Mon Sep 17 00:00:00 2001
+From: Ryan Wails <ryanswails@gmail.com>
+Date: Fri, 20 Jan 2023 15:38:03 -0500
+Subject: [PATCH 2/5] adds in nix-env for building
+
+---
+ env.nix | 17 +++++++++++++++++
+ 1 file changed, 17 insertions(+)
+ create mode 100644 env.nix
+
+diff --git a/env.nix b/env.nix
+new file mode 100644
+index 00000000..97c74d76
+--- /dev/null
++++ b/env.nix
+@@ -0,0 +1,17 @@
++# env.nix
++with (import <nixpkgs> {});
++mkShell {
++  buildInputs = [
++    flex
++    lzip
++    libidn2
++    libpsl
++    gnutls
++    libiconv
++    zlib
++    pcre2
++    gnupg1
++    libassuan
++    gpgme
++  ];
++}
+-- 
+2.30.2
+
+
+From ffb47a961a8a4c8f10400d6e6807b7727bb9a57c Mon Sep 17 00:00:00 2001
+From: Ryan Wails <ryanswails@gmail.com>
+Date: Sat, 21 Jan 2023 15:07:55 -0500
+Subject: [PATCH 3/5] updating the connect thru proxy to require an IPv4
+ address in decimal dot notation
+
+---
+ libwget/http.c | 10 ++++++++++
+ 1 file changed, 10 insertions(+)
+
+diff --git a/libwget/http.c b/libwget/http.c
+index 45a3f8af..eb850589 100644
+--- a/libwget/http.c
++++ b/libwget/http.c
+@@ -32,6 +32,7 @@
+ 
+ #include <assert.h>
+ #include <config.h>
++#include <inttypes.h>
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -610,6 +611,7 @@ static void setup_nghttp2_callbacks(nghttp2_session_callbacks *callbacks)
+ 
+ static int establish_proxy_connect(wget_tcp *tcp, const char *host, uint16_t port)
+ {
++# if 0
+   // <https://beej.us/guide/bgnet/html/#getaddrinfoprepare-to-launch>
+   int status;
+   struct addrinfo hints;
+@@ -641,6 +643,14 @@ static int establish_proxy_connect(wget_tcp *tcp, const char *host, uint16_t por
+   // ... do everything until you don't need servinfo anymore ....
+ 
+   freeaddrinfo(servinfo); // free the linked-list
++#endif // 0
++  uint8_t a = 0, b = 0, c = 0, d = 0;
++  int rc = sscanf(host, "%3" SCNu8 ".%3" SCNu8 ".%3" SCNu8 ".%3" SCNu8, &a, &b, &c, &d);
++  if (rc != 4) {
++    error_printf("Input hostname must be an IPv4 address.");
++		return WGET_E_CONNECT;
++  }
++  uint8_t addr_octets[4] =  {a, b, c, d};
+ 
+ 	char sbuf[1024];
+ 
+-- 
+2.30.2
+
+
+From cd82f2126ed44f96a6df114d182b2559dc8b44cd Mon Sep 17 00:00:00 2001
+From: Rob Jansen <jansen@cs.umn.edu>
+Date: Sun, 22 Jan 2023 12:54:20 -0500
+Subject: [PATCH 4/5] Fix parse proxies func
+
+---
+ libwget/http.c | 24 ++++++++++--------------
+ 1 file changed, 10 insertions(+), 14 deletions(-)
+
+diff --git a/libwget/http.c b/libwget/http.c
+index eb850589..8b38903b 100644
+--- a/libwget/http.c
++++ b/libwget/http.c
+@@ -1499,23 +1499,19 @@ static wget_vector *parse_proxies(const char *proxy, const char *encoding)
+ 		return NULL;
+ 
+ 	wget_vector *proxies = NULL;
+-	const char *s, *p;
+-
+-	for (s = p = proxy; *p; s = p + 1) {
+-		if ((p = strchrnul(s, ',')) != s && p - s < 256) {
+-			wget_iri *iri;
+-			char host[256];
+ 
+-			wget_strmemcpy(host, sizeof(host), s, p - s);
++	size_t s = strnlen(proxy, 256);
++	if (s > 0) {
++		char host[256];
++		wget_strmemcpy(host, sizeof(host), proxy, s);
+ 
+-			iri = wget_iri_parse (host, encoding);
+-			if (iri) {
+-				if (!proxies) {
+-					proxies = wget_vector_create(8, NULL);
+-					wget_vector_set_destructor(proxies, iri_free);
+-				}
+-				wget_vector_add(proxies, iri);
++		wget_iri *iri = wget_iri_parse (host, encoding);
++		if (iri) {
++			if (!proxies) {
++				proxies = wget_vector_create(8, NULL);
++				wget_vector_set_destructor(proxies, iri_free);
+ 			}
++			wget_vector_add(proxies, iri);
+ 		}
+ 	}
+ 
+-- 
+2.30.2
+
+
+From a2450264e3be83bcc243214dab4ab3493095f13e Mon Sep 17 00:00:00 2001
+From: Ryan Wails <ryanswails@gmail.com>
+Date: Thu, 26 Jan 2023 18:49:22 -0500
+Subject: [PATCH 5/5] Revert "updating the connect thru proxy to require an
+ IPv4 address in decimal dot notation"
+
+This reverts commit ffb47a961a8a4c8f10400d6e6807b7727bb9a57c.
+---
+ libwget/http.c | 10 ----------
+ 1 file changed, 10 deletions(-)
+
+diff --git a/libwget/http.c b/libwget/http.c
+index 8b38903b..fc909af8 100644
+--- a/libwget/http.c
++++ b/libwget/http.c
+@@ -32,7 +32,6 @@
+ 
+ #include <assert.h>
+ #include <config.h>
+-#include <inttypes.h>
+ 
+ #include <stdio.h>
+ #include <stdlib.h>
+@@ -611,7 +610,6 @@ static void setup_nghttp2_callbacks(nghttp2_session_callbacks *callbacks)
+ 
+ static int establish_proxy_connect(wget_tcp *tcp, const char *host, uint16_t port)
+ {
+-# if 0
+   // <https://beej.us/guide/bgnet/html/#getaddrinfoprepare-to-launch>
+   int status;
+   struct addrinfo hints;
+@@ -643,14 +641,6 @@ static int establish_proxy_connect(wget_tcp *tcp, const char *host, uint16_t por
+   // ... do everything until you don't need servinfo anymore ....
+ 
+   freeaddrinfo(servinfo); // free the linked-list
+-#endif // 0
+-  uint8_t a = 0, b = 0, c = 0, d = 0;
+-  int rc = sscanf(host, "%3" SCNu8 ".%3" SCNu8 ".%3" SCNu8 ".%3" SCNu8, &a, &b, &c, &d);
+-  if (rc != 4) {
+-    error_printf("Input hostname must be an IPv4 address.");
+-		return WGET_E_CONNECT;
+-  }
+-  uint8_t addr_octets[4] =  {a, b, c, d};
+ 
+ 	char sbuf[1024];
+ 
+-- 
+2.30.2
+
