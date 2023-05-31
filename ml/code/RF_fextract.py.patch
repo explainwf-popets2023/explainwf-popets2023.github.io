@@ -1,0 +1,41 @@
+--- RF_fextract.py	2023-05-27 01:38:59.878087528 -0400
++++ RF_fextract.py.updated	2023-02-25 21:48:49.870307386 -0500
+@@ -10,11 +10,11 @@
+ def neighborhood(iterable):
+     iterator = iter(iterable)
+     prev = (0)
+-    item = iterator.next()  # throws StopIteration if empty.
+-    for next in iterator:
+-        yield (prev,item,next)
++    item = next(iterator)  # throws StopIteration if empty.
++    for n in iterator:
++        yield (prev,item,n)
+         prev = item
+-        item = next
++        item = n
+     yield (prev,item,None)
+ 
+ def chunkIt(seq, num):
+@@ -38,6 +38,13 @@
+         a = line
+         b = a.split(" ")
+ 
++        try:
++            float(b[1])
++        except:
++            print("EXCEPTING LINE: ", line)
++            print("EXCEPTING DATA: ", trace_data)
++            assert False
++
+         if float(b[1]) > 0:
+             #dta.append(((float(b[0])- first_time), abs(int(b[2])), 1))
+             dta.append(((float(b[0])- first_time), 1))
+@@ -156,7 +163,7 @@
+ #concentration of outgoing packets in chunks of 20 packets
+ def pkt_concentration_stats(trace_data):
+     Total = get_pkt_list(trace_data)
+-    chunks= [Total[x:x+20] for x in xrange(0, len(Total), 20)]
++    chunks= [Total[x:x+20] for x in range(0, len(Total), 20)]
+     concentrations = []
+     for item in chunks:
+         c = 0
