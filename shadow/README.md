@@ -96,7 +96,7 @@ described on [the data page](/data).
 
 The Shadow configs for the sensitivity and robustness simulations in Sections 4
 and 5 of the paper are located inside of this subdirectory:
-[sensitivity_robustness](sensitivity_robustness).
+[sensitivity_robustness]([sensitivity_robustness](https://github.com/explainwf-popets2023/explainwf-popets2023.github.io/tree/main/shadow/sensitivity_robustness)).
 
 The process of running the simulations is nearly identical to that shown above, but needs to
 be done for each of the nine Shadow configuration sim dir tarballs.
