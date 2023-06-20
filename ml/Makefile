@@ -33,7 +33,6 @@ DOCKER_CODE_DIR=/mnt/bind/code
 DOCKER_DATA_DIR=/mnt/bind/data
 
 docker_run: docker_build $(CODE_DIR) $(DATA_DIR)
-	docker rm -f wfport
 	docker run --name $(CONTAINER_NAME) -it \
 		--mount type=bind,source=$(CODE_DIR),target=$(DOCKER_CODE_DIR) \
 		--mount type=bind,source=$(DATA_DIR),target=$(DOCKER_DATA_DIR) \
@@ -42,7 +41,7 @@ docker_run: docker_build $(CODE_DIR) $(DATA_DIR)
 
 docker_clean:
 	docker image rm $(IMAGE_NAME)
-	docker rm -f wfport
+	docker rm -f $(CONTAINER_NAME)
 .PHONY: clean_docker
 
 # Clean up

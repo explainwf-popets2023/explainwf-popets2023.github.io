@@ -11,7 +11,8 @@ Quickstart
 Run the following commands to create a sample dataset and train & evaluate an
 SVM on the sample data.
 
-1. Run `$ make docker_run`
+1. Run `$ make docker_run`. This command will enter into a Docker shell with the
+   correct dependencies installed.
 2. Inside the Docker shell, run the following:
   1. `$ cd /mnt/bind/code/`
   2. `$ ./download.bash`
