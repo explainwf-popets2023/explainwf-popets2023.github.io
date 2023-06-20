@@ -1,6 +1,11 @@
+[[back to homepage](/)]
+
 # Datasets
 
 In this file we describe the datasets that are made available in this artifact.
+
+To access the files, you can get a local copy of the artifact
+(`git clone git@github.com:explainwf-popets2023/explainwf-popets2023.github.io.git`).
 
 ## Fidelity
 

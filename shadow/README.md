@@ -1,3 +1,5 @@
+[[back to homepage](/)]
+
 # Shadow
 
 Here we provide some Shadow simulation files for informational purposes---to
@@ -9,6 +11,9 @@ on our 36 core (72 HT) server machines.
 The most useful Shadow outputs are the cell traces that are collected during the
 simulations, and those are described in more detail on [the data page](/data)
 and analyzed on the [ML page](/ml).
+
+Before running the commands below, make sure you have a local copy of the artifact
+(`git clone git@github.com:explainwf-popets2023/explainwf-popets2023.github.io.git`).
 
 ## Building an image using the Dockerfile
 
@@ -27,31 +32,31 @@ build the image.
 
 The image can be built with
 
-        docker build \
-            --no-cache \
-            --network=host \
-            -f Dockerfile \
-            -t shadowsim:wfport \
-            .
+    docker build \
+        --no-cache \
+        --network=host \
+        -f Dockerfile \
+        -t shadowsim:wfport \
+        .
 
 ## Running the image
 
 The `shadowsim:wfport` image built above can be run with
 
-        docker run \
-            --privileged \
-            --cap-add=SYS_PTRACE \
-            --security-opt seccomp=unconfined \
-            --log-driver none \
-            --shm-size=1t \
-            --pids-limit -1 \
-            --ulimit nofile=10485760:10485760 \
-            --ulimit nproc=-1:-1 \
-            --ulimit sigpending=-1 \
-            --ulimit rtprio=99:99 \
-            -v /storage:/mnt:z \
-            -it \
-            shadowsim:wfport bash
+    docker run \
+        --privileged \
+        --cap-add=SYS_PTRACE \
+        --security-opt seccomp=unconfined \
+        --log-driver none \
+        --shm-size=1t \
+        --pids-limit -1 \
+        --ulimit nofile=10485760:10485760 \
+        --ulimit nproc=-1:-1 \
+        --ulimit sigpending=-1 \
+        --ulimit rtprio=99:99 \
+        -v /storage:/mnt:z \
+        -it \
+        shadowsim:wfport bash
 
 The above bind-mounts the `/storage` directory containing a `wikidata`
 subdirectory with a [wikipedia mirror
@@ -68,26 +73,26 @@ Untar this in `/storage` to make it available inside the docker image. Then
 inside the docker image we want to run a sequence of commands to run the Shadow
 simulation and parse out the results we want.
 
-        SIM_DIR=/storage/tornet-net_0.25-load_2.0
+    SIM_DIR=/storage/tornet-net_0.25-load_2.0
 
-        tornettools simulate \
-            --shadow /opt/bin/shadow \
-            --args "--parallelism=36 --template-directory=shadow.data.template" \
-            --filename "shadow.config.crawl.yaml" \
-            ${SIM_DIR}
+    tornettools simulate \
+        --shadow /opt/bin/shadow \
+        --args "--parallelism=36 --template-directory=shadow.data.template" \
+        --filename "shadow.config.crawl.yaml" \
+        ${SIM_DIR}
 
-        tornettools parse ${SIM_DIR}
+    tornettools parse ${SIM_DIR}
 
-        tornettools plot \
-            ${SIM_DIR} \
-            --prefix ${SIM_DIR}/pdfs
+    tornettools plot \
+        ${SIM_DIR} \
+        --prefix ${SIM_DIR}/pdfs
 
-        cat ${SIM_DIR}/shadow.data/hosts/relay970guard/relay970guard.oniontrace.1001.stdout | \
-            grep '650 GWF' | \
-            cut -d' ' -f7- \
-            > ${SIM_DIR}/wget2-traces.log
+    cat ${SIM_DIR}/shadow.data/hosts/relay970guard/relay970guard.oniontrace.1001.stdout | \
+        grep '650 GWF' | \
+        cut -d' ' -f7- \
+        > ${SIM_DIR}/wget2-traces.log
 
-        tornettools archive ${SIM_DIR}
+    tornettools archive ${SIM_DIR}
 
 We repeated this process by running six simulations, the results are further
 described on [the data page](/data).
@@ -104,7 +109,7 @@ be done for each of the nine Shadow configuration sim dir tarballs.
 The only change from above is the command to extract the `wget2-traces.log` files. The `cat`
 command in the above should be replaced with something like:
 
-        for d in ${SIM_DIR}/shadow.data/hosts/relay*[0-9]guard ; do cat ${d}/*oniontrace*stdout ; done | grep '650 GWF' | cut -d' ' -f7- > ${SIM_DIR}/wget2-traces.log
+    for d in ${SIM_DIR}/shadow.data/hosts/relay*[0-9]guard ; do cat ${d}/*oniontrace*stdout ; done | grep '650 GWF' | cut -d' ' -f7- > ${SIM_DIR}/wget2-traces.log
 
 We run each of the nine Shadow configurations twice, the results are further
 described on [the data page](/data).

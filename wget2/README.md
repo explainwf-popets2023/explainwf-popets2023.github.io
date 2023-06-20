@@ -1,6 +1,11 @@
+[[back to homepage](/)]
+
 # wget2 with SOCKS
 
-This directory contains a custom patch we wrote for wget2 that enables SOCKS
+Make sure you have a local copy of the artifact
+(`git clone git@github.com:explainwf-popets2023/explainwf-popets2023.github.io.git`).
+
+The `wget2` directory contains a custom patch we wrote for wget2 that enables SOCKS
 protocol support.
 
 Run `$ make wget2` to clone the wget2 tool repository and apply our patch.

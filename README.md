@@ -1,4 +1,4 @@
-### Overview
+# Overview
 
 This page describes research artifacts for the following research publication:
 
@@ -22,7 +22,7 @@ site, please cite the paper. Here is a bibtex entry for latex users:
 }
 ```
 
-### Contents
+# Contents
 
 Our artifact contains two primary contributions: (1) Datasets of cell traces
 gathered from crawling the live Tor network and produced during the execution of
@@ -32,6 +32,11 @@ that we used to run our Shadow experiments. However, due to the resource demands
 of running the Shadow simulations, we do not expect these to be used directly by
 future researchers and therefore we do not provide precise documentation for
 them. Finally, we provide some details about our patched version of wget2.
+
+You will want to have a copy of the artifact if you intend to work with our data
+or run our scripts. You can obtain a copy of the repository from Github with:
+
+    git clone git@github.com:explainwf-popets2023/explainwf-popets2023.github.io.git
 
 We have broken our artifact into multiple parts, each of which is described on
 its own subpage of this site:

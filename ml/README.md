@@ -1,3 +1,5 @@
+[[back to homepage](/)]
+
 Prerequisites
 =============
 
@@ -5,12 +7,16 @@ Prerequisites
 - XZ Utils <https://tukaani.org/xz/>
 - GNU Make <https://www.gnu.org/software/make/>
 
+Make sure you have a local copy of the artifact
+(`git clone git@github.com:explainwf-popets2023/explainwf-popets2023.github.io.git`).
+
 Quickstart
 ==========
 
 Run the following commands to create a sample dataset and train & evaluate an
 SVM on the sample data.
 
+0. Enter the artifact ml dir: `$ cd explainwf-popets2023.github.io/ml`
 1. Run `$ make docker_run`. This command will enter into a Docker shell with the
    correct dependencies installed.
 2. Inside the Docker shell, run the following:
