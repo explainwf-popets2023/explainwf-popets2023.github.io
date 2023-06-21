@@ -4,8 +4,8 @@ BUILD_DIR=$(CURDIR)/build
 
 PWD := $(realpath $(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
 
-CODE_DIR=./code
-DATA_DIR=./sample_data
+CODE_DIR=$(PWD)/code
+DATA_DIR=$(PWD)/sample_data
 
 all: docker_build
 .PHONY: all
