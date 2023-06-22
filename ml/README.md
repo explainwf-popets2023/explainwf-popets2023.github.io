@@ -16,10 +16,10 @@ Quickstart
 Run the following commands to create a sample dataset and train & evaluate an
 SVM on the sample data.
 
-0. Enter the artifact ml dir: `$ cd explainwf-popets2023.github.io/ml`
-1. Run `$ make docker_run`. This command will enter into a Docker shell with the
+1. Enter the artifact ml dir: `$ cd explainwf-popets2023.github.io/ml`
+2. Run `$ make docker_run`. This command will enter into a Docker shell with the
    correct dependencies installed.
-2. Inside the Docker shell, run the following:
+3. Inside the Docker shell, run the following:
   1. `$ cd /mnt/bind/code/`
   2. `$ ./download.bash`
   3. `$ ./patch.bash`
@@ -39,6 +39,10 @@ The final classification statistics will be located out `./output.json`.
 
 Notes
 =====
+
+- If you want to re-run the quickstart, you need to remove the previous Docker
+  container that was built. You can do this by either running
+  `$ make docker_container_clean` or `docker rm -f explainwf`.
 
 - The quickstart and this guide use sample datasets generated from our full
   datasets. See our Makefile. The sample datasets can be replaced with the full

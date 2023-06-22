@@ -1,5 +1,5 @@
-IMAGE_NAME=wfport-img
-CONTAINER_NAME=wfport
+IMAGE_NAME=explainwf-img
+CONTAINER_NAME=explainwf
 BUILD_DIR=$(CURDIR)/build
 
 PWD := $(realpath $(dir $(abspath $(firstword $(MAKEFILE_LIST)))))
@@ -37,12 +37,18 @@ docker_run: docker_build $(CODE_DIR) $(DATA_DIR)
 		--mount type=bind,source=$(CODE_DIR),target=$(DOCKER_CODE_DIR) \
 		--mount type=bind,source=$(DATA_DIR),target=$(DOCKER_DATA_DIR) \
 		$(IMAGE_NAME) /bin/bash
-.PHONY: run_docker
+.PHONY: docker_run
 
-docker_clean:
-	docker image rm $(IMAGE_NAME)
+docker_container_clean:
 	docker rm -f $(CONTAINER_NAME)
-.PHONY: clean_docker
+.PHONY: docker_container_clean
+
+docker_image_clean:
+	docker image rm $(IMAGE_NAME)
+.PHONY: docker_image_clean
+
+docker_full_clean: docker_container_clean docker_image_clean
+.PHONY: docker_full_clean
 
 # Clean up
 
