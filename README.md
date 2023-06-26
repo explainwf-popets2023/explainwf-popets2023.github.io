@@ -17,7 +17,7 @@ site, please cite the paper. Here is a bibtex entry for latex users:
   journal = {Proceedings on Privacy Enhancing Technologies},
   year = {2023},
   volume = {2023},
-  number = {4}
+  number = {4},
   note = {See also \url{https://explainwf-popets2023.github.io}},
 }
 ```
